@@ -18,7 +18,8 @@ Tout est en français, sans fenêtre noire, sans réglage et sans compte à cré
 2. Placez-le sur le Bureau de l'ordinateur (ou dans n'importe quel dossier).
 3. Double-cliquez dessus.
    - Si Windows affiche **« Windows a protégé votre ordinateur »**, cliquez sur **« Informations complémentaires »**, puis sur **« Exécuter quand même »**. Cela n'arrive qu'à la première ouverture : l'application est gratuite et n'est pas signée par un éditeur payant.
-4. **Première ouverture seulement** : l'application télécharge ses outils (environ 175 Mo : yt-dlp, ffmpeg et deno). Comptez quelques minutes. Ensuite, tout est prêt.
+   - Si Windows **bloque l'application sans proposer « Exécuter quand même »**, c'est le **Contrôle intelligent des applications** de Windows 11 (voir [Dépannage](#dépannage)).
+4. **Première ouverture seulement** : l'application télécharge ses outils (environ 160 Mo : yt-dlp, ffmpeg et deno). Comptez de quelques secondes à quelques minutes selon la connexion. Ensuite, tout est prêt.
 
 Configuration requise : Windows 10 ou 11 (64 bits) et une connexion Internet. Rien d'autre à installer : l'application utilise le .NET Framework déjà inclus dans Windows.
 
@@ -95,6 +96,8 @@ yt-dlp se met à jour automatiquement (au plus une fois par jour, au démarrage)
 | « YouTube bloque temporairement… » | Attendez une heure environ, puis réessayez. |
 | « Aucune clé USB trouvée » | Branchez la clé, attendez quelques secondes, puis recliquez. |
 | L'auto ne lit pas la clé | Vérifiez le format FAT32 (voir plus haut). |
+| Windows bloque l'application **sans** bouton « Exécuter quand même » (Windows 11) | C'est le **Contrôle intelligent des applications**, qui bloque tout programme non signé (l'application et ses outils). Pour l'utiliser : **Sécurité Windows › Contrôle des applications et du navigateur › Paramètres du contrôle intelligent des applications › Désactivé**. Attention : cela réduit une protection de Windows et, sur certaines versions de Windows 11, elle ne peut plus être réactivée ensuite. |
+| La préparation (premier lancement) échoue | Vérifiez la connexion Internet, puis cliquez sur « Réessayer la préparation ». Un antivirus peut aussi bloquer les outils téléchargés : consultez `journal.txt`. |
 | Autre problème | Envoyez le fichier `journal.txt` (lien **Aide** › chemin indiqué) à la personne qui a installé l'application. |
 
 Pour **réinstaller les outils**, fermez l'application, supprimez le dossier `%LOCALAPPDATA%\MusiquePourAuto\outils`, puis rouvrez l'application.

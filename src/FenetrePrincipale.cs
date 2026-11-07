@@ -246,7 +246,7 @@ namespace MusiquePourAuto
         async Task PreparerOutils()
         {
             Occuper(true);
-            AfficherStatut("Première utilisation : l'application télécharge ses outils (environ 150 Mo). "
+            AfficherStatut("Première utilisation : l'application télécharge ses outils (environ 160 Mo). "
                          + "Cela peut prendre quelques minutes. Ça ne se fera qu'une seule fois.", TexteNormal);
             barre.Style = ProgressBarStyle.Continuous;
             barre.Value = 0;
