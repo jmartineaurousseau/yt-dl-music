@@ -21,7 +21,7 @@ Tout est en français, sans fenêtre noire, sans réglage et sans compte à cré
    - Si Windows **bloque l'application sans proposer « Exécuter quand même »**, c'est le **Contrôle intelligent des applications** de Windows 11 (voir [Dépannage](#dépannage)).
 4. **Première ouverture seulement** : l'application télécharge ses outils (environ 160 Mo : yt-dlp, ffmpeg et deno). Comptez de quelques secondes à quelques minutes selon la connexion. Ensuite, tout est prêt.
 
-Configuration requise : Windows 10 ou 11 (64 bits) et une connexion Internet. Rien d'autre à installer : l'application utilise le .NET Framework déjà inclus dans Windows.
+Configuration requise : Windows 10 (à jour) ou Windows 11, 64 bits, et une connexion Internet. Rien d'autre à installer : l'application utilise le .NET Framework 4.8 déjà inclus dans Windows.
 
 > Astuce : clic droit sur `MusiquePourAuto.exe` › **Afficher d'autres options** › **Envoyer vers** › **Bureau (créer un raccourci)** si vous préférez garder le fichier ailleurs.
 
@@ -98,6 +98,7 @@ yt-dlp se met à jour automatiquement (au plus une fois par jour, au démarrage)
 | L'auto ne lit pas la clé | Vérifiez le format FAT32 (voir plus haut). |
 | Windows bloque l'application **sans** bouton « Exécuter quand même » (Windows 11) | C'est le **Contrôle intelligent des applications**, qui bloque tout programme non signé (l'application et ses outils). Pour l'utiliser : **Sécurité Windows › Contrôle des applications et du navigateur › Paramètres du contrôle intelligent des applications › Désactivé**. Attention : cela réduit une protection de Windows et, sur certaines versions de Windows 11, elle ne peut plus être réactivée ensuite. |
 | La préparation (premier lancement) échoue | Vérifiez la connexion Internet, puis cliquez sur « Réessayer la préparation ». Un antivirus peut aussi bloquer les outils téléchargés : consultez `journal.txt`. |
+| « Les outils téléchargés n'ont pas passé la vérification de sécurité » | Un fichier reçu ne correspond pas à l'empreinte publiée par son éditeur : il a été refusé et supprimé. Réessayez plus tard (une mise à jour était peut-être en cours de publication). Si cela continue, envoyez `journal.txt`. |
 | Autre problème | Envoyez le fichier `journal.txt` (lien **Aide** › chemin indiqué) à la personne qui a installé l'application. |
 
 Pour **réinstaller les outils**, fermez l'application, supprimez le dossier `%LOCALAPPDATA%\MusiquePourAuto\outils`, puis rouvrez l'application.
@@ -110,7 +111,7 @@ Supprimez `MusiquePourAuto.exe` et le dossier `%LOCALAPPDATA%\MusiquePourAuto`. 
 
 ## Pour les développeurs
 
-Le code est en C# 5 / WinForms, compilé avec le compilateur `csc.exe` du .NET Framework 4.x **inclus dans Windows**. Aucun SDK n'est requis.
+Le code est en C# 5 / WinForms, compilé avec le compilateur `csc.exe` du .NET Framework **inclus dans Windows**. Aucun SDK n'est requis. L'exécutable déclare la cible .NET Framework 4.8 (attribut `TargetFramework` dans `src/Programme.cs`) : sans elle, .NET appliquerait ses réglages hérités (SSL 3 / TLS 1.0) et les téléchargements depuis GitHub échoueraient.
 
 ```bat
 build.cmd    :: produit build\MusiquePourAuto.exe
@@ -121,7 +122,7 @@ test.cmd     :: compile et lance les tests du nettoyage des titres
 |---|---|
 | `src/FenetrePrincipale.cs` | Interface (3 étapes, gros boutons, messages simples) |
 | `src/Conversion.cs` | yt-dlp (audio seulement) puis ffmpeg (MP3 CBR 192k, 44,1 kHz, ID3v2.3) |
-| `src/Outils.cs` | Emplacements, journal, lancement de processus, installation et mise à jour des outils |
+| `src/Outils.cs` | Emplacements, journal, lancement de processus, installation (avec vérification SHA-256) et mise à jour des outils |
 | `src/NomsChansons.cs` | Déduction artiste/titre, nettoyage des titres, noms de fichiers compatibles FAT32 |
 | `src/CleUsb.cs` | Détection des clés USB, vérification du format, copie |
 | `src/Programme.cs` | Point d'entrée, instance unique, mode `--auto-test` |
@@ -144,6 +145,8 @@ Outils téléchargés au premier lancement :
 ### Outils tiers et licences
 
 L'application ne contient aucun de ces outils : elle les télécharge depuis leurs sources officielles au premier lancement. Chacun garde sa propre licence.
+
+**Sécurité des téléchargements :** chaque outil est vérifié avec l'empreinte SHA-256 publiée par son éditeur (`SHA2-256SUMS` pour yt-dlp, `checksums.sha256` pour FFmpeg, `.sha256sum` pour Deno). Un fichier dont l'empreinte ne correspond pas, ou dont l'empreinte est introuvable, est refusé et supprimé. Les connexions utilisent la version de TLS choisie par Windows (TLS 1.2 ou 1.3). Ensuite, yt-dlp se met à jour par sa propre commande `-U`, qui vérifie elle aussi les empreintes.
 
 | Outil | Rôle | Licence |
 |---|---|---|

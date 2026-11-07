@@ -7,7 +7,9 @@ using System.Diagnostics;
 using System.IO;
 using System.IO.Compression;
 using System.Net;
+using System.Security.Cryptography;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading;
 
 namespace MusiquePourAuto
@@ -200,12 +202,27 @@ namespace MusiquePourAuto
         }
     }
 
+    /// <summary>Le fichier téléchargé ne correspond pas à l'empreinte publiée par son éditeur.</summary>
+    public sealed class EmpreinteInvalideException : Exception
+    {
+        public EmpreinteInvalideException(string message) : base(message) { }
+    }
+
     /// <summary>Installation et mise à jour des outils nécessaires.</summary>
     public static class Outils
     {
+        // Chaque outil est vérifié avec l'empreinte SHA-256 publiée par son éditeur.
         const string UrlYtDlp = "https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp.exe";
+        const string UrlEmpreintesYtDlp = "https://github.com/yt-dlp/yt-dlp/releases/latest/download/SHA2-256SUMS";
+        const string NomYtDlp = "yt-dlp.exe";
+
         const string UrlFfmpeg = "https://github.com/yt-dlp/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-win64-gpl-shared.zip";
+        const string UrlEmpreintesFfmpeg = "https://github.com/yt-dlp/FFmpeg-Builds/releases/download/latest/checksums.sha256";
+        const string NomFfmpeg = "ffmpeg-master-latest-win64-gpl-shared.zip";
+
         const string UrlDeno = "https://github.com/denoland/deno/releases/latest/download/deno-x86_64-pc-windows-msvc.zip";
+        const string UrlEmpreintesDeno = "https://github.com/denoland/deno/releases/latest/download/deno-x86_64-pc-windows-msvc.zip.sha256sum";
+        const string NomDeno = "deno-x86_64-pc-windows-msvc.zip";
 
         /// <summary>Empêche une mise à jour de yt-dlp pendant un téléchargement.</summary>
         public static readonly object VerrouYtDlp = new object();
@@ -226,7 +243,9 @@ namespace MusiquePourAuto
         /// </summary>
         public static void Installer(Action<int, string> progression)
         {
-            ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12;
+            // Pas de version de TLS imposée : l'exécutable cible .NET Framework 4.8
+            // (voir Programme.cs), donc Windows choisit lui-même (TLS 1.2 ou 1.3).
+            Journal.Ecrire("Protocoles TLS : " + ServicePointManager.SecurityProtocol);
             Directory.CreateDirectory(Emplacements.DossierOutils);
 
             // Poids approximatifs pour une barre de progression globale réaliste.
@@ -237,7 +256,7 @@ namespace MusiquePourAuto
             {
                 Journal.Ecrire("Installation de yt-dlp");
                 int depart = fait;
-                Telecharger(UrlYtDlp, Emplacements.YtDlp, delegate(int p)
+                TelechargerVerifie(UrlYtDlp, UrlEmpreintesYtDlp, NomYtDlp, Emplacements.YtDlp, delegate(int p)
                 {
                     progression(depart + p * poidsYtDlp / 100, "Préparation (1 de 3) : outil de téléchargement...");
                 });
@@ -249,7 +268,7 @@ namespace MusiquePourAuto
                 Journal.Ecrire("Installation de ffmpeg");
                 string zip = Path.Combine(Emplacements.DossierOutils, "ffmpeg.zip");
                 int depart = fait;
-                Telecharger(UrlFfmpeg, zip, delegate(int p)
+                TelechargerVerifie(UrlFfmpeg, UrlEmpreintesFfmpeg, NomFfmpeg, zip, delegate(int p)
                 {
                     progression(depart + p * (poidsFfmpeg - 5) / 100, "Préparation (2 de 3) : outil de conversion MP3...");
                 });
@@ -264,7 +283,7 @@ namespace MusiquePourAuto
                 Journal.Ecrire("Installation de deno");
                 string zip = Path.Combine(Emplacements.DossierOutils, "deno.zip");
                 int depart = fait;
-                Telecharger(UrlDeno, zip, delegate(int p)
+                TelechargerVerifie(UrlDeno, UrlEmpreintesDeno, NomDeno, zip, delegate(int p)
                 {
                     progression(depart + p * (poidsDeno - 3) / 100, "Préparation (3 de 3) : outil de compatibilité YouTube...");
                 });
@@ -316,7 +335,12 @@ namespace MusiquePourAuto
             }
         }
 
-        static void Telecharger(string url, string destination, Action<int> progression)
+        /// <summary>
+        /// Télécharge un fichier et vérifie son empreinte SHA-256 avant de l'accepter.
+        /// L'empreinte est relue à chaque essai : un outil « latest » peut changer entre deux essais.
+        /// Un fichier dont l'empreinte ne correspond pas n'est jamais conservé.
+        /// </summary>
+        public static void TelechargerVerifie(string url, string urlEmpreintes, string nomDansEmpreintes, string destination, Action<int> progression)
         {
             string partiel = destination + ".partiel";
             Exception derniere = null;
@@ -324,38 +348,20 @@ namespace MusiquePourAuto
             {
                 try
                 {
-                    var requete = (HttpWebRequest)WebRequest.Create(url);
-                    requete.UserAgent = "MusiquePourAuto/1.0";
-                    requete.AllowAutoRedirect = true;
-                    requete.Timeout = 60000;
-                    requete.ReadWriteTimeout = 60000;
-                    using (var reponse = (HttpWebResponse)requete.GetResponse())
-                    using (var flux = reponse.GetResponseStream())
-                    using (var fichier = new FileStream(partiel, FileMode.Create, FileAccess.Write))
-                    {
-                        long total = reponse.ContentLength;
-                        long lu = 0;
-                        var tampon = new byte[81920];
-                        int n, dernierPourcent = -1;
-                        while ((n = flux.Read(tampon, 0, tampon.Length)) > 0)
-                        {
-                            fichier.Write(tampon, 0, n);
-                            lu += n;
-                            if (total > 0)
-                            {
-                                int pourcent = (int)(lu * 100 / total);
-                                if (pourcent != dernierPourcent)
-                                {
-                                    dernierPourcent = pourcent;
-                                    progression(pourcent);
-                                }
-                            }
-                        }
-                        if (total > 0 && lu != total)
-                            throw new IOException("Téléchargement incomplet (" + lu + " sur " + total + " octets)");
-                    }
+                    string attendue = TrouverEmpreinte(TelechargerTexte(urlEmpreintes), nomDansEmpreintes);
+                    if (attendue == null)
+                        throw new EmpreinteInvalideException("Empreinte SHA-256 de " + nomDansEmpreintes + " introuvable dans " + urlEmpreintes);
+
+                    TelechargerFichier(url, partiel, progression);
+
+                    string obtenue = Sha256Fichier(partiel);
+                    if (obtenue != attendue)
+                        throw new EmpreinteInvalideException("Empreinte SHA-256 incorrecte pour " + nomDansEmpreintes
+                            + " (attendue " + attendue + ", obtenue " + obtenue + ")");
+
                     if (File.Exists(destination)) File.Delete(destination);
                     File.Move(partiel, destination);
+                    Journal.Ecrire(nomDansEmpreintes + " vérifié (SHA-256 " + obtenue + ")");
                     return;
                 }
                 catch (Exception ex)
@@ -366,9 +372,99 @@ namespace MusiquePourAuto
                     if (essai < 3) Thread.Sleep(3000 * essai);
                 }
             }
+            if (derniere is EmpreinteInvalideException)
+                throw new InvalidOperationException(
+                    "Les outils téléchargés n'ont pas passé la vérification de sécurité. Réessayez plus tard. "
+                    + "Si le problème continue, envoyez le fichier journal à la personne qui a installé l'application.",
+                    derniere);
             throw new InvalidOperationException(
                 "Impossible de télécharger les outils nécessaires. Vérifiez que l'ordinateur est bien connecté à Internet, puis réessayez.",
                 derniere);
+        }
+
+        /// <summary>
+        /// Trouve l'empreinte SHA-256 (en minuscules) d'un fichier dans un fichier d'empreintes.
+        /// Formats acceptés : « empreinte  nom » (sha256sum, une ligne par fichier), ou une seule
+        /// empreinte dans un texte qui mentionne le fichier (format Get-FileHash de PowerShell, utilisé par Deno).
+        /// Retourne null si l'empreinte est introuvable ou ambiguë.
+        /// </summary>
+        public static string TrouverEmpreinte(string texte, string nomFichier)
+        {
+            if (string.IsNullOrEmpty(texte) || string.IsNullOrEmpty(nomFichier)) return null;
+            var hex = new Regex(@"\b[0-9a-fA-F]{64}\b");
+
+            foreach (string brute in texte.Split('\n'))
+            {
+                string ligne = brute.Trim();
+                Match m = hex.Match(ligne);
+                if (!m.Success || m.Index != 0) continue;
+                string nom = ligne.Substring(m.Length).Trim().TrimStart('*');
+                if (string.Equals(nom, nomFichier, StringComparison.OrdinalIgnoreCase))
+                    return m.Value.ToLowerInvariant();
+            }
+
+            MatchCollection toutes = hex.Matches(texte);
+            if (toutes.Count == 1 && texte.IndexOf(nomFichier, StringComparison.OrdinalIgnoreCase) >= 0)
+                return toutes[0].Value.ToLowerInvariant();
+            return null;
+        }
+
+        public static string Sha256Fichier(string chemin)
+        {
+            using (var sha = SHA256.Create())
+            using (var flux = new FileStream(chemin, FileMode.Open, FileAccess.Read, FileShare.Read, 1 << 16))
+            {
+                byte[] octets = sha.ComputeHash(flux);
+                var sb = new StringBuilder(64);
+                foreach (byte b in octets) sb.Append(b.ToString("x2"));
+                return sb.ToString();
+            }
+        }
+
+        static HttpWebRequest Requete(string url)
+        {
+            var requete = (HttpWebRequest)WebRequest.Create(url);
+            requete.UserAgent = "MusiquePourAuto/1.1";
+            requete.AllowAutoRedirect = true;
+            requete.Timeout = 60000;
+            requete.ReadWriteTimeout = 60000;
+            return requete;
+        }
+
+        static string TelechargerTexte(string url)
+        {
+            using (var reponse = (HttpWebResponse)Requete(url).GetResponse())
+            using (var lecteur = new StreamReader(reponse.GetResponseStream(), Encoding.UTF8))
+                return lecteur.ReadToEnd();
+        }
+
+        static void TelechargerFichier(string url, string destination, Action<int> progression)
+        {
+            using (var reponse = (HttpWebResponse)Requete(url).GetResponse())
+            using (var flux = reponse.GetResponseStream())
+            using (var fichier = new FileStream(destination, FileMode.Create, FileAccess.Write))
+            {
+                long total = reponse.ContentLength;
+                long lu = 0;
+                var tampon = new byte[81920];
+                int n, dernierPourcent = -1;
+                while ((n = flux.Read(tampon, 0, tampon.Length)) > 0)
+                {
+                    fichier.Write(tampon, 0, n);
+                    lu += n;
+                    if (total > 0)
+                    {
+                        int pourcent = (int)(lu * 100 / total);
+                        if (pourcent != dernierPourcent)
+                        {
+                            dernierPourcent = pourcent;
+                            progression(pourcent);
+                        }
+                    }
+                }
+                if (total > 0 && lu != total)
+                    throw new IOException("Téléchargement incomplet (" + lu + " sur " + total + " octets)");
+            }
         }
 
         /// <summary>Copie le contenu du dossier « bin » de l'archive ffmpeg (ffmpeg.exe, ffprobe.exe et leurs DLL).</summary>

@@ -11,9 +11,13 @@ using System.Windows.Forms;
 [assembly: AssemblyDescription("Transforme une vidéo YouTube en MP3 compatible avec les radios d'automobile.")]
 [assembly: AssemblyProduct("Musique pour l'auto")]
 [assembly: AssemblyCopyright("Licence MIT")]
-[assembly: AssemblyVersion("1.0.0.0")]
-[assembly: AssemblyFileVersion("1.0.0.0")]
-[assembly: AssemblyInformationalVersion("1.0.0")]
+[assembly: AssemblyVersion("1.1.0.0")]
+[assembly: AssemblyFileVersion("1.1.0.0")]
+[assembly: AssemblyInformationalVersion("1.1.0")]
+// Cible .NET Framework 4.8 (inclus dans Windows 10 1903+ et Windows 11). Sans cet attribut,
+// .NET applique ses réglages hérités (anciens protocoles TLS, cryptographie faible) ;
+// avec lui, Windows choisit lui-même la version de TLS (1.2 ou 1.3).
+[assembly: System.Runtime.Versioning.TargetFramework(".NETFramework,Version=v4.8", FrameworkDisplayName = ".NET Framework 4.8")]
 
 namespace MusiquePourAuto
 {

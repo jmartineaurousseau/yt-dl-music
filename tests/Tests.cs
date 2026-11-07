@@ -28,6 +28,49 @@ static class Tests
         Egal(miseAJourAttendue.ToString(), miseAJour.ToString(), "mise à jour utile pour : " + sortieYtDlp);
     }
 
+    static void TesterEmpreintes()
+    {
+        const string a = "f5389d3698ecde4ef06f4e6b1ce0294fe9ac1396228c8990b8d3416d6d177a7d";
+        const string b = "036988a43f3171607cd7434960b3ce3ef04d30f0d29ec525ba3fe8c34653e9ac";
+        const string c = "1111111111111111111111111111111111111111111111111111111111111111";
+
+        // Format sha256sum de yt-dlp : plusieurs fichiers aux noms proches.
+        string ytdlp = c + "  yt-dlp\n" + a + "  yt-dlp.exe\n" + b + "  yt-dlp_x86.exe\n" + c + "  yt-dlp_win.zip\n";
+        Egal(a, Outils.TrouverEmpreinte(ytdlp, "yt-dlp.exe"), "empreinte yt-dlp.exe parmi des noms proches");
+        Egal(b, Outils.TrouverEmpreinte(ytdlp, "yt-dlp_x86.exe"), "empreinte yt-dlp_x86.exe");
+
+        // Format FFmpeg-Builds : « gpl » et « gpl-shared » ne doivent pas être confondus.
+        string ffmpeg = a + "  ffmpeg-master-latest-win64-gpl.zip\r\n" + b + "  ffmpeg-master-latest-win64-gpl-shared.zip\r\n";
+        Egal(b, Outils.TrouverEmpreinte(ffmpeg, "ffmpeg-master-latest-win64-gpl-shared.zip"), "empreinte ffmpeg gpl-shared (fins de ligne Windows)");
+        Egal(a, Outils.TrouverEmpreinte(ffmpeg, "ffmpeg-master-latest-win64-gpl.zip"), "empreinte ffmpeg gpl");
+
+        // Marqueur binaire « *nom » de sha256sum.
+        Egal(a, Outils.TrouverEmpreinte(a + " *outil.zip\n", "outil.zip"), "marqueur binaire *");
+
+        // Format Get-FileHash de PowerShell (Deno) : empreinte en majuscules, nom sur une autre ligne.
+        string deno = "\r\nAlgorithm : SHA256\r\nHash      : " + b.ToUpperInvariant() + "\r\nPath      : C:\\a\\deno\\deno\\target\\release\\deno-x86_64-pc-windows-msvc.zip\r\n\r\n";
+        Egal(b, Outils.TrouverEmpreinte(deno, "deno-x86_64-pc-windows-msvc.zip"), "format Get-FileHash de Deno");
+
+        // Cas refusés : rien à vérifier = échec de l'installation (on ne garde jamais un outil non vérifié).
+        Egal(null, Outils.TrouverEmpreinte(ytdlp, "absent.exe"), "fichier absent de la liste");
+        Egal(null, Outils.TrouverEmpreinte("", "yt-dlp.exe"), "fichier d'empreintes vide");
+        Egal(null, Outils.TrouverEmpreinte("<html>Not Found</html>", "yt-dlp.exe"), "page d'erreur au lieu des empreintes");
+        Egal(null, Outils.TrouverEmpreinte("Hash : " + a + "\nPath : autre-fichier.zip", "deno-x86_64-pc-windows-msvc.zip"), "empreinte unique mais pour un autre fichier");
+        Egal(null, Outils.TrouverEmpreinte(a + "\n" + b + "\n", "outil.zip"), "plusieurs empreintes sans nom : ambigu");
+
+        // Calcul SHA-256 (vecteur de test officiel : « abc »).
+        string fichier = Path.Combine(Path.GetTempPath(), "MusiquePourAuto-sha-" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            File.WriteAllBytes(fichier, new byte[] { 0x61, 0x62, 0x63 });
+            Egal("ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad", Outils.Sha256Fichier(fichier), "SHA-256 de « abc »");
+        }
+        finally
+        {
+            File.Delete(fichier);
+        }
+    }
+
     static void TesterCopie()
     {
         string racineTest = Path.Combine(Path.GetTempPath(), "MusiquePourAuto-test-" + Guid.NewGuid().ToString("N"));
@@ -126,6 +169,7 @@ static class Tests
         Erreur("[download] Bla bla does not pass filter (live_status!=is_live), skipping ..", "direct", false);
 
         TesterCopie();
+        TesterEmpreintes();
 
         Console.WriteLine("{0} tests, {1} échec(s)", total, echecs);
         return echecs == 0 ? 0 : 1;
