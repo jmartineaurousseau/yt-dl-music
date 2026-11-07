@@ -141,6 +141,16 @@ Outils téléchargés au premier lancement :
 - [FFmpeg (builds de yt-dlp)](https://github.com/yt-dlp/FFmpeg-Builds) : `ffmpeg-master-latest-win64-gpl-shared.zip`
 - [Deno](https://github.com/denoland/deno) : moteur JavaScript exigé par yt-dlp pour YouTube
 
+### Outils tiers et licences
+
+L'application ne contient aucun de ces outils : elle les télécharge depuis leurs sources officielles au premier lancement. Chacun garde sa propre licence.
+
+| Outil | Rôle | Licence |
+|---|---|---|
+| [yt-dlp](https://github.com/yt-dlp/yt-dlp) | Téléchargement de l'audio | Unlicense (domaine public) |
+| [FFmpeg](https://ffmpeg.org) ([builds de yt-dlp](https://github.com/yt-dlp/FFmpeg-Builds)) | Conversion en MP3 | GPL |
+| [Deno](https://github.com/denoland/deno) | Moteur JavaScript exigé par yt-dlp pour YouTube | MIT |
+
 ---
 
 ## Utilisation responsable

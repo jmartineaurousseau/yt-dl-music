@@ -108,7 +108,7 @@ static class Tests
         // Liens
         Vrai(NomsChansons.EstUnLienYouTube("https://www.youtube.com/watch?v=jNQXAC9IVRw"), "lien youtube.com");
         Vrai(NomsChansons.EstUnLienYouTube("https://youtu.be/jNQXAC9IVRw?si=xyz"), "lien youtu.be");
-        Vrai(NomsChansons.EstUnLienYouTube("https://music.youtube.com/watch?v=fJ9rUzIMcZQ&list=RDAMVM"), "lien YouTube Music");
+        Vrai(NomsChansons.EstUnLienYouTube("https://music.youtube.com/watch?v=jNQXAC9IVRw&list=RDAMVM"), "lien YouTube Music");
         Vrai(NomsChansons.EstUnLienYouTube("  https://m.youtube.com/shorts/abc  "), "lien mobile avec espaces");
         Vrai(!NomsChansons.EstUnLienYouTube("Bohemian Rhapsody"), "texte qui n'est pas un lien");
         Vrai(!NomsChansons.EstUnLienYouTube("https://notyoutube.com/watch?v=1"), "faux domaine");
