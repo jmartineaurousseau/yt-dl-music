@@ -1,0 +1,8 @@
+# Résultats de compilation (l'exécutable est publié dans les Releases GitHub)
+build/
+*.exe
+*.pdb
+
+# Fichiers produits par l'application
+*.mp3
+*.partiel
